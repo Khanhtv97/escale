@@ -1,0 +1,1392 @@
+//////////////////////////////////////////////////////////////////////////////////////
+// Copyright (c) GBS 2012 All Right Reserved, http://gbs-jsc.com.                   //
+// This source is subject to the GBS Permissive License. Please see the License.txt //
+// file for more information.                                                       //
+//                                                                                  //
+// file: GDrawable.cpp                                                              //
+//////////////////////////////////////////////////////////////////////////////////////
+
+#include "GDrawable.hpp"
+#include "GView.hpp"
+#include "APIBitmap.hpp"
+
+//namespace GBS {
+//namespace STM {
+//namespace Framework {
+
+//////////////////////////////////////////////////////////////////////////////////////
+//class GPosition
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GPosition::operator+=(const int delta)
+{
+   this->x += delta;
+   this->y += delta;
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GPosition::operator+=(const GSize& size)
+{
+   this->x += size.w;
+   this->y += size.h;
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GPosition::operator+(const int delta)
+{
+   // goi ham dung sao chep de tao ra doi tuong moi, roi goi += oper o tren
+   return GPosition(*this) += delta;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GPosition::operator+(const GSize& size)
+{
+   return GPosition(*this) += size;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GPosition::operator-=(const GSize& size)
+{
+   this->x -= size.w;
+   this->y -= size.h;
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GPosition::operator-=(const int delta)
+{
+   this->x -= delta;
+   this->y -= delta;
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GPosition::operator-(const GSize& size)
+{
+   return GPosition(*this) -= size;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GPosition::operator-(const int delta)
+{
+   return GPosition(*this) -= delta;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GPosition::operator-(const GPosition& pos)
+{
+   return *(new GSize(this->x - pos.x, this->y - pos.y));
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GPosition::operator==(const GPosition& pos)
+{
+   return (this->x == pos.x) && (this->y == pos.y);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GPosition::operator!=(const GPosition& pos)
+{
+   return !(*this == pos);
+}
+//////////////////////////////////////////////////////////////////////////////////////
+//end of class GPosition
+//////////////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+//class GSize
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator-()
+{ // invert
+   return *(new GSize(-(this->w),-(this->h)));
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator+=(const GSize& size)
+{
+   w += size.w;
+   h += size.h;
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator+(const GSize& size)
+{
+   return GSize(*this) += size;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator+=(const int delta)
+{
+   w += delta;
+   h += delta;
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator+(const int delta)
+{
+   return GSize(*this) += delta;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator-=(const GSize& size)
+{
+   w -= size.w;
+   h -= size.h;
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator-(const GSize& size)
+{
+   return GSize(*this) -= size;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator-=(const int delta)
+{
+   w -= delta;
+   h -= delta;
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator-(const int delta)
+{
+   return GSize(*this) -= delta;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator*=(const int mul)
+{
+   w *= mul;
+   h *= mul;
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator*(const int mul)
+{
+   return GSize(*this) *= mul;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator/=(const int div)
+{
+   w = (w + div-1) / div;
+   h = (h + div-1) / div;
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GSize::operator/(const int div)
+{
+   return GSize(*this) /= div;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GSize::operator+(const GPosition& pos)
+{
+   return *(new GPosition(w + pos.x, h + pos.y));
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GSize::operator==(const GSize& size)
+{
+   return (this->w == size.w) && (this->h == size.h);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GSize::operator!=(const GSize& size)
+{
+   return !(*this == size);
+}
+//////////////////////////////////////////////////////////////////////////////////////
+//end of class GSize
+//////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////
+//class GColor
+//////////////////////////////////////////////////////////////////////////////////////
+
+GColor::GColor()
+{
+   A = (DEFAULT_COLOR & 0xFF000000) >> 24;
+   R = (DEFAULT_COLOR & 0xFF0000) >> 16;
+   G = (DEFAULT_COLOR & 0xFF00) >> 8;
+   B = DEFAULT_COLOR & 0xFF;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GColor::GColor(U32 color)
+{
+   A = (color & 0xFF000000) >> 24;
+   R = (color & 0xFF0000) >> 16;
+   G = (color & 0xFF00) >> 8;
+   B = color & 0xFF;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GColor::GColor(U8 a, U8 r, U8 g, U8 b): A(a), R(r), G(g), B(b)
+{
+   // ! Dummy;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+U32 GColor::Code()
+{
+   return ((U32)A << 24) | (R << 16) | (G << 8) | B;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GColor::operator==(const GColor& color)
+{
+   return ( (((U32)A << 24) | (R << 16) | (G << 8) | B)
+         == (((U32)color.A << 24) | (color.R << 16) | (color.G << 8) | color.B));
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GColor::operator!=(const GColor& color)
+{
+   return !(*this == color);
+}
+//////////////////////////////////////////////////////////////////////////////////////
+//end of class GColor
+//////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////
+//class GFont
+//////////////////////////////////////////////////////////////////////////////////////
+GFont::GFont()
+{
+   _fontId = DEFAULT_FONT_ID;
+   _color = new GColor();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+GFont::GFont(int font_id)
+{
+   //_fontId = font_id; -> we use only VERA_SANS_14_N font
+   _fontId = VERA_SANS_14_N;
+   _color = new GColor();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GFont::GFont(int font_id, U32 Color)
+{
+   //_fontId = font_id; -> we use only VERA_SANS_14_N font
+   _fontId = VERA_SANS_14_N;
+   _color = new GColor(Color);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GFont::GFont(const GColor& color)
+{
+   _fontId = DEFAULT_FONT_ID;
+   _color = new GColor(color);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GFont::GFont(int font_id, const GColor& color)
+{
+   //_fontId = font_id; -> we use only VERA_SANS_14_N font
+   _fontId = VERA_SANS_14_N;
+   _color = new GColor(color);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GFont::GFont(const GFont& font)
+{
+   //_fontId = font._fontId; -> we use only VERA_SANS_14_N font
+   _fontId = VERA_SANS_14_N;
+   _color = new GColor(*font._color);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int& GFont::FontId()
+{
+   return _fontId; // use int& de gan 2 chieu dc
+}
+//////////////////////////////////////////////////////////////////////////////////////
+GColor& GFont::Color()
+{
+   return *_color;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GFont::setFont(int font_id)
+{
+   //_fontId = font_id; -> we use only VERA_SANS_14_N font
+   _fontId = VERA_SANS_14_N;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GFont::setColor(const GColor& color)
+{
+   if( _color != NULL )
+   {
+      delete _color;
+      _color = NULL;
+   }
+   _color = new GColor(color);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GFont::~GFont()
+{
+   if( _color != NULL )
+   {
+      delete _color;
+      _color = NULL;
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GFont& GFont::operator=(const GFont& font)
+{
+   if( this != &font )
+   {// avoid self assignment
+      _fontId = font._fontId;
+      delete _color;
+      _color = NULL;
+      _color = new GColor(*font._color);
+   }
+   return *this;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GFont::operator==(const GFont& font)
+{
+   return (_fontId==font._fontId) && (*_color == *font._color);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GFont::operator!=(const GFont& font)
+{
+   return !(*this == font);
+}
+//////////////////////////////////////////////////////////////////////////////////////
+//end of class GFont
+//////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////
+//class GDrawable
+//////////////////////////////////////////////////////////////////////////////////////
+int GDrawable::idPool = 0;
+
+void GDrawable::init()
+{
+   m_pParent = NULL;
+   m_nDraw1 = 0;
+   m_layer = DEFAULT_DRAW_LAYER_ID;//DEFAULT_LAYER_ID; trungkt changed 16-12-2013
+   m_zindex = DEFAULT_Z_INDEX;
+   m_alpha = DEFAULT_ALPHA;
+   m_nARGB = 0;
+   m_id = idPool++;
+   m_manualSize.w = -1;
+   m_manualSize.h = -1;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GDrawable::GDrawable()
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GDrawable::~GDrawable()
+{
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GDrawable::GDrawable(int layer)
+{
+   init();
+   m_layer = layer;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GDrawable::GDrawable(int x, int y)
+{
+   init();
+   m_position.x = x;
+   m_position.y = y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GDrawable::GDrawable(int layer, int x, int y)
+{
+   init();
+   m_layer = layer;
+   m_position.x = x;
+   m_position.y = y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GDrawable::GDrawable(int x, int y, int ref_x, int ref_y)
+{
+   init();
+   m_position.x = x;
+   m_position.y = y;
+   m_refPosition.x = ref_x;
+   m_refPosition.y = ref_y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GDrawable::GDrawable(int layer, int x, int y, int ref_x, int ref_y)
+{
+   init();
+   m_position.x = x;
+   m_position.y = y;
+   m_refPosition.x = ref_x;
+   m_refPosition.y = ref_y;
+   m_layer = layer;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GDrawable::GDrawable(const GPosition& pos)
+{
+   init();
+   m_position.x = pos.x;
+   m_position.y = pos.y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GDrawable::draw(int x, int y)
+{
+   int x0 = this->m_position.x;
+   int y0 = this->m_position.y;
+   this->m_position.x = x;
+   this->m_position.y = y;
+
+   GError_t er = this->draw();
+
+   this->m_position.x = x0;
+   this->m_position.y = y0;
+
+   return er;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GDrawable::bringForward()
+{
+   if(m_pParent != NULL)
+   {
+      m_pParent->bringForward(this->m_id);
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GDrawable::sendBackward()
+{
+   if(m_pParent != NULL)
+   {
+      m_pParent->sendBackward(this->m_id);
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GDrawable::bringToFront()
+{
+   if(m_pParent != NULL)
+   {
+      m_pParent->bringToFront(this->m_id);
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GDrawable::sendToBack()
+{
+   if(m_pParent != NULL)
+   {
+      m_pParent->sendToBack(this->m_id);
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GDrawable::draw(int layerid)
+{
+   int old_layer = this->m_layer;
+
+   this->m_layer = layerid;
+   _DTraceDebug("GDrawable::draw layerid = %d",layerid);
+   GError_t er = this->draw();
+
+   this->m_layer = old_layer;
+
+   return er;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GDrawable::draw(int layerid, int x, int y)
+{
+   //_DTraceDebug("GDrawable::draw(int layerid, int x, int y) \n");
+   int x0 = this->m_position.x;
+   int y0 = this->m_position.y;
+   int old_layer = this->m_layer;
+
+   this->m_position.x = x;
+   this->m_position.y = y;
+   this->m_layer = layerid;
+   _DTraceDebug("%s (layerid,x,y) = (%d,%d,%d)",classname(),layerid,x,y);
+   GError_t er = this->draw();
+
+   this->m_position.x = x0;
+   this->m_position.y = y0;
+   this->m_layer = old_layer;
+
+   return er;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GDrawable::instanceOf(const char* _classname)
+{
+   return (((std::string)classname()).compare(_classname) == 0);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GView* GDrawable::parent()
+{
+   return m_pParent;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setParent(GView* parent)
+{
+   m_pParent = parent;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GDrawable::getLastError()
+{
+   return m_lastError;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int GDrawable::id()
+{
+   return m_id;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int& GDrawable::x()
+{
+   return m_position.x;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int& GDrawable::y()
+{
+   return m_position.y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int& GDrawable::z()
+{
+   return m_zindex;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int& GDrawable::w()
+{
+   if( m_manualSize.w < 0 )
+   {
+      return m_size.w;
+   }
+   else
+   {
+      return m_manualSize.w;
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int& GDrawable::h()
+{
+   if( m_manualSize.h < 0 )
+   {
+      return m_size.h;
+   }
+   else
+   {
+      return m_manualSize.h;
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GDrawable::pos()
+{
+   return m_position;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GDrawable::size()
+{
+   return m_size;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GSize& GDrawable::manualSize()
+{
+   return m_manualSize;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int& GDrawable::refX()
+{
+   return m_refPosition.x;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int& GDrawable::refY()
+{
+   return m_refPosition.y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GPosition& GDrawable::refPos()
+{
+   return m_refPosition;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setX(int x)
+{
+   m_position.x = x;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setY(int y)
+{
+   m_position.y = y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setW(int w)
+{
+   m_size.w = w;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setH(int h)
+{
+   m_size.h = h;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setZ(int z)
+{
+   m_zindex = z;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setPos(int x, int y)
+{
+   m_position.x = x;
+   m_position.y = y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setPos(const GPosition& pos)
+{
+   m_position.x = pos.x;
+   m_position.x = pos.y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setSize(const GSize& size)
+{
+   m_size.w = size.w;
+   m_size.h = size.h;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setSize(int w, int h)
+{
+   m_size.w = w;
+   m_size.h = h;
+   m_manualSize.w = -1;
+   m_manualSize.h = -1;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setManualSize(int w, int h)
+{
+   m_manualSize.w = w;
+   m_manualSize.h = h;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setRefPos(const GPosition& pos)
+{
+   m_refPosition.y = pos.x;
+   m_refPosition.y = pos.y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setRefPos(int x, int y)
+{
+   m_refPosition.x = x;
+   m_refPosition.y = y;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int& GDrawable::layer()
+{
+   return m_layer;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+int& GDrawable::alpha()
+{
+   return m_alpha;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setLayer(int layerid)
+{
+   if( (layerid <= MAX_LAYER_ID) && (layerid >= 0) )
+   {
+      m_layer = layerid;
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GDrawable::setBgRGB(U32 argb)
+{
+   //m_alpha=(argb&0xFF000000)>>24;
+   //R=(argb&0xFF0000)>>16;
+   //G=(argb&0xFF00)>>8;
+   //B=argb&0xFF;
+   //void setBgRGB(U8 r,U8 g,U8 b){R=r;G=g;B=b;}   //2013-05-02thu_th66
+   m_nARGB = argb;
+}
+//////////////////////////////////////////////////////////////////////////////////////
+//end of class GDrawable
+//////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////
+//class GText
+//////////////////////////////////////////////////////////////////////////////////////
+void GText::init()
+{
+   m_pFont = new GFont(0, DEFAULT_COLOR);
+   m_refPosition.y = -FONT_OFFSETY[0];
+   m_pText = NULL;
+   m_textID = -1;
+   textField_W = -1;
+   textField_H = -1;
+   alignType   = -1;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText() : GDrawable()
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int layer) : GDrawable(layer)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int layer, const std::string& s) : GDrawable(layer)
+{
+   init();
+   setText(s);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(const std::string& s)
+{
+   init();
+   setText(s);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int layer, const std::string& s, int fontid, U32 color) : GDrawable(layer)
+{
+   init();
+   setText(s);
+   setFont(fontid, color);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(const std::string& s, int fontid, U32 color)
+{
+   init();
+   setText(s);
+   setFont(fontid, color);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int x, int y) : GDrawable(x,y)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int layer, int x, int y) : GDrawable(layer, x,y)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int layer, int x, int y, const std::string& s) : GDrawable(layer,x,y)
+{
+   init();
+   setText(s);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int layer, int x, int y, const std::string& s, int fontid, U32 color) : GDrawable(layer,x,y)
+{
+   init();
+   setText(s);
+   setFont(fontid, color);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int x, int y, const std::string& s, int fontid, U32 color) : GDrawable(x,y)
+{
+   init();
+   setText(s);
+   setFont(fontid, color);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int x, int y, const std::string& s, int fontid, U32 color, int textField_w) : GDrawable(x,y)
+{
+   init();
+   setText(s);
+   setFont(fontid, color);
+   this->textField_W = textField_w;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int x, int y, int ref_x, int ref_y) : GDrawable(x,y,ref_x,ref_y)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(int layer, int x, int y, int ref_x, int ref_y) : GDrawable(layer, x,y,ref_x,ref_y)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::GText(const GPosition& pos) : GDrawable(pos)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GText::setFont(GFont& font)
+{
+   if(m_pFont != NULL)
+   {
+      delete m_pFont;
+      m_pFont = NULL;
+   }
+
+   m_pFont = new GFont(font);
+   m_refPosition.y = -FONT_OFFSETY[font.FontId()];
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GText::setFont(int fontid, U32 color)
+{
+   if(m_pFont != NULL)
+   {
+      delete m_pFont;
+      m_pFont = NULL;
+   }
+
+   m_pFont = new GFont(fontid, color);
+   m_refPosition.y = -FONT_OFFSETY[fontid];
+
+   calculateTextSize();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GText::calculateTextSize()
+{
+   this->w() = 0;
+   this->h() = 0;
+   if( m_pText != NULL )
+   {
+      //int w, h;
+      //GetTextSize(m_pText->c_str(), (m_pFont==NULL)?0:m_pFont->FontId(), &w, &h);
+      //this->w() = w;
+      //this->h() = h;
+
+      // estimate text size
+      //this->h() = 22;
+      //if(m_pFont != NULL)
+      //{
+      //   this->h() = this->h() + m_pFont->FontId()*2;
+      //}
+      //
+      //this->w() = 20 * m_pText->length();
+
+      //_DTraceDebug("Text size for '%s' is %d x %d\n", m_pText->c_str(), this->w(), this->h());
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GText::setText(const std::string& s)
+{
+   if(m_pText != NULL)
+   {
+      delete m_pText;
+      m_pText = NULL;
+   }
+   m_pText = new std::string(s);
+
+   calculateTextSize();
+
+   //if(m_textID >= 0)
+   //{
+   //   FreeTextHandle(m_textID);
+   //   m_textID = -1;
+   //}
+
+   //_DTraceDebug("Set text to %s \n", m_pText->c_str());
+}
+
+int _nGfxPlaneDraw = DEFAULT_DRAW_LAYER_ID;
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GText::draw()
+{
+   GError_t er = GERROR_NONE;
+
+   //_DTraceError("GText::draw() %d",m_textID);
+
+   if( strlen(m_pText->c_str()) < 1 )
+   {
+      return GERROR_NOT_FOUND;//2013-07-16tue_th66
+   }
+
+   if( m_pText == NULL )
+   {
+      _DTraceError("(%s)\t\t#%d, Text string not initialized yet!",classname(),this->id());
+      return GERROR_NOT_FOUND;
+   }
+
+   if( m_pFont == NULL )
+   {
+      _DTraceError("(%s)\t\t#%d, Font not initialized yet!", classname(), this->id());
+      return GERROR_NOT_FOUND;
+   }
+
+   int realX = this->x() - this->refX();
+   int realY = this->y() - this->refY();
+
+   if( m_textID >= 0 )
+   {
+      FreeTextHandle(m_textID);
+   }
+
+   m_textID = getNextFreeTextId();
+   //_DTraceDebug("New free text handle: %d\n", m_textID);
+   //_DTraceError("GText::draw() %d",m_textID);
+   //if(0<=m_textID)er=DeleteText(m_textID);   m_textID=getNextFreeTextId();//2013-05-01we_th66
+
+   if( m_textID < 0 || TEXT_MAX_NUMBER_OF_TEXT_OBJECTS <= m_textID )
+   {
+      _DTraceError("(%s)\t\t#%d, No more free text handle!",classname(),this->id());
+   }
+
+   TextParams_t textParams;
+   textParams.color   = m_pFont->Color().Code();
+   textParams.fontId  = m_pFont->FontId();
+   textParams.planeId = _nGfxPlaneDraw; //m_layer;
+   textParams.posX    = realX;
+   textParams.posY    = realY;
+   //_DTraceDebug("(%s)\t\t#%d, Drawing text \"%s\" with ID %d\n",classname(),this->id(),m_pText->c_str(),m_textID);
+
+   for(int i = 0; i < m_pText->size(); i++ )
+   {
+      U8 charAt = (U8)(m_pText->at(i));
+      if( charAt < 0x20 || charAt > 0xFE )
+      {
+         // Remove char due to be out of TCVN3 Font table
+         m_pText->erase(i, 1);
+      }
+   }
+
+   if( alignType < 0 )
+   {
+      PrintText(m_textID, m_pText->c_str(), textParams, textField_W, textField_H);
+   }
+   else
+   {
+      PrintAlignedText(m_textID, m_pText->c_str(), textParams, textField_W, alignType);
+   }
+
+   //_DTraceDebug("(%s)\t\t#%d, layer %d, z %2d, pos (%3d, %3d), ref (%3d, %3d), size (%3d, %3d), text: %s, font: %d, color: 0x%08x\n", classname(), this->id(), this->layer(), this->z(), realX, realY, this->refX(), this->refY(), this->w(), this->h(), m_pText->c_str(),m_pFont->FontId(), m_pFont->Color().Code());
+   return er;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GText::clr()
+{
+   GError_t e = GERROR_NONE;
+
+   if( 0 <= m_textID )
+   {
+      e = DeleteText(m_textID);
+   }
+
+   return e;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GText::~GText()
+{
+   if( m_pText != NULL )
+   {
+      delete m_pText;
+      m_pText = NULL;
+   }
+
+   if( m_pFont != NULL )
+   {
+      delete m_pFont;
+      m_pFont = NULL;
+   }
+
+   if( 0 <= m_textID )
+   {
+      FreeTextHandle(m_textID);
+   }
+}
+//////////////////////////////////////////////////////////////////////////////////////
+//end of class GText
+//////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////
+//class GFillRect
+GFillRect::GFillRect(int x, int y, int w, int h, U32 argb, int l) : GDrawable(l, x, y)
+{
+   plane = l;
+   X = x;
+   Y = y;
+   W = w;
+   H = h;
+   m_nARGB = argb;
+   setSize(w, h);
+
+   //alfa=(argb&0xFF000000)>>24;R=(argb&0xFF0000)>>16;G=(argb&0xFF00)>>8;B=argb&0xFF;}
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GFillRect::draw()
+{
+   _DTraceDebug("GFillRect::draw().... ");
+
+   GBLITfillRect(x()-refX(), y()-refY(), W, H, m_nARGB, plane);
+
+   return GERROR_NONE;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//class GDrawRec
+GDrawRec::GDrawRec(int x, int y, int w, int h, U32 argb, int l) : GDrawable(l, x, y)
+{
+   plane = l;
+   X = x;
+   Y = y;
+   W = w;
+   H = h;
+   m_nARGB = argb;
+   setSize(w, h);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GDrawRec::draw()
+{
+   //_DTraceDebug("GDrawRec::draw() (%d,%d) \n",W,H);
+   GBDrawRect(x()-refX(), y()-refY(), W, H, m_nARGB, plane);
+   return GERROR_NONE;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GBLITfillProcBar(int val, int min, int max, int x, int y, int w, int h,
+                    U32 argb0, U32 argb1, int nHorV, int Plane)
+{
+   int d0 = val-min, d1 = max-min, w1;
+   if( !d1 )
+   {
+      return;
+   }
+   w1 = w*d0/d1;
+   GBLITfillRect(x, y, w, h, argb0, Plane);
+   GBLITfillRect(x, y, w1, h, argb1, Plane);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+//class GBitmap
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap() : GDrawable()
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(int layer) : GDrawable(layer)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(int layer, GAMLOAD_Object* gamObj) : GDrawable(layer)
+{
+   init();
+   setGam(gamObj);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(GAMLOAD_Object* gamObj)
+{
+   init();
+   setGam(gamObj);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(GAMLOAD_Object* gamObj, int width, int height)
+{
+   init();
+   setGamManual(gamObj, width, height);
+   m_width = width;
+   m_height = height;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(GBitmap* bitmapToCopy)
+{
+   init();
+   setGam(bitmapToCopy->m_pGamObject);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(int x, int y) : GDrawable(x,y)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(int layer, int x, int y, GAMLOAD_Object* gamObj) : GDrawable(layer, x, y)
+{
+   init();
+   setGam(gamObj);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(int layer, int x, int y) : GDrawable(layer, x,y)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(int x, int y, int ref_x, int ref_y) : GDrawable(x, y, ref_x, ref_y)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(int layer, int x, int y, int ref_x, int ref_y) : GDrawable(layer, x, y, ref_x, ref_y)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GBitmap::GBitmap(const GPosition& pos) : GDrawable(pos)
+{
+   init();
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GBitmap::init()
+{
+   m_pGamObject = NULL;
+   m_width = -1;
+   m_height = -1;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GBitmap::setGam(GAMLOAD_Object* gamObj)
+{
+   m_pGamObject = gamObj;
+   setWH(gamObj);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GBitmap::setGamManual(GAMLOAD_Object* gamObj, int width, int height)
+{
+   m_pGamObject = gamObj;
+   setWHManual(gamObj, width, height);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+const GAMLOAD_Object_t* GBitmap::getGam()
+{
+   return m_pGamObject;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GBitmap::draw()
+{
+   GError_t er = GERROR_NONE;
+
+   if( m_pGamObject == NULL )
+   {
+      _DTraceDebug("(%s)\t\t#%d, GAMobj for thisBMP not initialized yet!",classname(),this->id());
+      return GERROR_NOT_FOUND;
+   }
+
+   int realX = this->x()-this->refX();
+   int realY = this->y()-this->refY();
+
+   APIDrawParams drawParams;
+   drawParams.posX = realX;
+   drawParams.posY = realY;
+   drawParams.planeId = _nGfxPlaneDraw;//m_layer;
+   drawParams.alpha = toSTMAlpha(m_alpha);
+
+   if(m_width!=-1)
+   {
+      drawParams.width = m_width;
+   }
+
+   if(m_height!=-1)
+   {
+      drawParams.height = m_height;
+   }
+
+   DrawGam(m_pGamObject, drawParams);
+   //_DTraceDebug("(%s)\t\t#%d, layer%d, z%2d, pos(%3d,%3d), ref(%3d,%3d), size(%3d,%3d)\n",classname(),this->id(),this->layer(),this->z(),realX,realY,this->refX(),this->refY(),this->w(),this->h());
+
+   return er;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GBitmap::setWH(GAMLOAD_Object* gamObj)
+{
+   GError_t er = GERROR_NOT_FOUND;
+
+   if( gamObj == NULL )
+   {
+      return er;
+   }
+
+   if( gamObj->Bitmap == NULL )
+   {
+      return er;
+   }
+
+   this->w() = gamObj->Bitmap->Width;
+   this->h() = gamObj->Bitmap->Height;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GError_t GBitmap::setWHManual(GAMLOAD_Object* gamObj, int width, int height)
+{
+   GError_t er = GERROR_NOT_FOUND;
+
+   if( gamObj == NULL )
+   {
+      return er;
+   }
+
+   if( gamObj->Bitmap == NULL )
+   {
+      return er;
+   }
+
+   this->w() = width;
+   this->h() = height;
+}
+//////////////////////////////////////////////////////////////////////////////////////
+//end of class GBitmap
+//////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////
+//class GRect
+//////////////////////////////////////////////////////////////////////////////////////
+GRect::GRect()
+{
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GRect::GRect(int w, int h)
+{
+   size.w = w;
+   size.h = h;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+GRect::GRect(int x, int y, int w, int h)
+{
+   pos.x = x;
+   pos.y = y;
+   size.w = w;
+   size.h = h;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+void GRect::reset(int _x, int _y, int _w, int _h)
+{
+   pos.x = _x;
+   pos.y = _y;
+   size.w = _w;
+   size.h = _h;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GRect::intersect(int _x, int _y, int _w, int _h)
+{
+   if( (size.w == 0) && (size.h == 0) && (_w == 0) && (_h == 0) )
+   {
+      return false;
+   }
+
+   if( (_x   >= pos.x + size.w) ||
+      (_x + _w <= pos.x) ||
+      (_y   >= pos.y + size.h) ||
+      (_y + _h <= pos.y) )
+   {
+      return false;
+   }
+   else
+   {
+      return true;
+   }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GRect::intersect(GRect* rect)
+{
+   return intersect(rect->x(), rect->y(), rect->w(), rect->h());
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+bool GRect::intersect(GRect& rect)
+{
+   return intersect(rect.x(), rect.y(), rect.w(), rect.h());
+}
+//////////////////////////////////////////////////////////////////////////////////////
+//end of class GRect
+//////////////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////////////
+//} //Framework
+//} //STM
+//} //GBS

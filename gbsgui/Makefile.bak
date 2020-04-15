@@ -1,0 +1,119 @@
+####################################################################################################
+## The makefile for gbsgui
+##
+## nguyenchithuc@gbs-jsc.com (gthuc.nguyen@gmail.com)
+##
+####################################################################################################
+
+include gbsgui.mk
+
+all: create_obj_dirs $(GBSGUI_LIB)
+
+create_obj_dirs:
+ifeq "$(wildcard $(GBSGUI_OBJ_DIR))" ""
+	-@$(MKDIR) $(GBSGUI_OBJ_DIR)
+endif	
+ifeq "$(wildcard $(BDIR))" ""
+	-@$(MKDIR) $(BDIR)
+endif
+ifeq "$(wildcard $(API_BDIR))" ""
+	-@$(MKDIR) $(API_BDIR)
+endif
+ifeq "$(wildcard $(FW_BDIR))" ""
+	-@$(MKDIR) $(FW_BDIR)
+endif
+ifeq "$(wildcard $(RES_BDIR))" ""
+	-@$(MKDIR) $(RES_BDIR)
+endif
+ifeq "$(wildcard $(APP_BDIR))" ""
+	-@$(MKDIR) $(APP_BDIR)
+endif
+
+print:
+	@echo API_SRC:  "$(API_SRC_DIR)"
+	@echo API_LIB:	"$(API_LIB)"
+	@echo RES_SRC:  "$(RES_SRC_DIR)"
+	@echo RES_LIB:	"$(RES_LIB)"
+	@echo FW_SRC :  "$(FW_SRC_DIR)"
+	@echo FW_LIB :	"$(FW_LIB)"
+	@echo APP_SRC:  "$(APP_SRC_DIR)"
+	@echo APP_LIB:	"$(APP_LIB)"
+	@echo 
+	@echo GBSGUI_LIB: "$(GBSGUI_LIB)"
+
+IM_LIBS = $(API_LIB) $(RES_LIB) $(FW_LIB) $(APP_LIB)
+
+define BUILD_LIB_IMPORTS
+$(if $(wildcard $@),@$(RM) $@)
+$(if $(wildcard ar.mac),@$(RM) ar.mac)
+$(if $(filter %.a,$(IM_LIBS)),@echo CREATE $(call NATIVEPATH,$@) > ar.mac
+@echo SAVE >> ar.mac
+@echo END >> ar.mac
+@$(AR) -M <ar.mac
+)
+$(if $(filter %.o,$(IM_LIBS)),@$(AR) -q $@ $(filter %.o,$(IM_LIBS)))
+$(if $(filter %.a,$(IM_LIBS)),
+@echo OPEN $@ > ar.mac
+$(foreach LIB,$(filter %.a,$(IM_LIBS)),
+@echo ADDLIB $(LIB) >> ar.mac
+)
+@echo SAVE >> ar.mac
+@echo END >> ar.mac
+@$(AR) -M <ar.mac
+@$(RM) ar.mac
+)
+@$(AR) -s $@
+endef
+
+$(GBSGUI_LIB) :  $(API_LIB) $(RES_LIB) $(FW_LIB) $(APP_LIB)
+	@$(ECHO) Building GBSGUI LIBRARY...
+ifeq "$(ARCHITECTURE)" "ST40"
+	$(BUILD_LIB_IMPORTS)
+endif
+
+$(API_LIB):
+		@$(ECHO) Building API Wraper LIBRARY...
+		@make all -C $(API_SRC_DIR)
+
+$(RES_LIB):
+		@$(ECHO) Building Resources	LIBRARY...
+		@make all -C $(RES_SRC_DIR)
+
+$(FW_LIB):
+		@$(ECHO) Building Kachiusa Framework LIBRARY...
+		@make all -C $(FW_SRC_DIR)
+
+$(APP_LIB): $(APP_SRC_DIR)/*.cpp $(APP_SRC_DIR)/*.hpp  #dependencies to check for modification of those files
+		@$(ECHO) Building Kachiusa Main App LIBRARY...
+		@make all -C $(APP_SRC_DIR)
+		
+## Clean Targets ##
+	
+purge_all: purge_app purge_fw purge_res purge_api purge_stgui 
+
+purge_stgui:
+	@$(ECHO) Cleaning GBSGUI LIBRARY...
+ifneq "$(wildcard $(GBSGUI_OBJ_DIR))" ""
+	$(FULLRM) $(GBSGUI_OBJ_DIR)
+endif
+
+purge_app:
+		@$(ECHO) Cleaning Kachiusa Main App LIBRARY...
+		@make purge -C $(APP_SRC_DIR)
+
+purge_fw:
+		@$(ECHO) Cleaning Kachiusa Framework LIBRARY...
+		@make purge -C $(FW_SRC_DIR)
+				
+purge_res:
+		@$(ECHO) Cleaning Resources	LIBRARY...
+		@make purge -C $(RES_SRC_DIR)
+		
+purge_api:
+		@$(ECHO) Cleaning API Wraper LIBRARY...
+		@make purge -C $(API_SRC_DIR)
+
+depend:
+	makedepend $(APP_SRC_DIR)/*.cpp $(APP_SRC_DIR)/*.hpp
+
+# DO NOT DELETE

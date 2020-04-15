@@ -1,0 +1,183 @@
+#########################
+## Include Environment ##
+#########################
+## This is the makefile to create binary image of the application
+## This is called from stsdk tree when doing : gmake rom
+## There is a special option which could be use to enable the compression of the binary image : gmake rom ZIP=1
+## However please note that compression is disabled if zlib source code is not found.
+## By default zlib source code is supposed to be here : $STSDKROOT/bin/zlib
+
+STAPP_OBJ_DIR = $(STSDKROOT)$(SLASH)stapp$(SLASH)stapp.dir
+include $(DVD_MAKE)/generic.mak
+BDIR = $(STAPP_OBJ_DIR)$(SLASH)$(OBJECT_DIRECTORY)$(SLASH)
+
+#######################
+## Toolset selection ##
+#######################
+
+ifeq "$(DVD_ADDRESSMODE)" "29"
+ FLASH_VIRTUAL_ADDRESS  = 0x80000000
+ FLASH_PHYSICAL_ADDRESS = 0xA0000000
+ FLASH_BOOTROM_FLAGS    = -DFLASH_BOOTROM_OFFSET=0
+ ifeq "$(ZIP)" "1"
+  FLASH_BOOTROM_PADDING = 0x8001FFE4 ## FLASH_VIRTUAL_ADDRESS+0x0001FFE4
+ else
+  FLASH_BOOTROM_PADDING = 0x80003FE4 ## FLASH_VIRTUAL_ADDRESS+0x00003FE4
+ endif
+else
+ FLASH_VIRTUAL_ADDRESS  = 0x00000000
+ FLASH_PHYSICAL_ADDRESS = 0x00000000
+ FLASH_BOOTROM_OFFSET   = 0x00000000
+ FLASH_BOOTROM_FLAGS    = -DFLASH_BOOTROM_OFFSET=0
+ ifeq "$(ZIP)" "1"
+  FLASH_BOOTROM_PADDING = 0x0001FFE4 ## FLASH_VIRTUAL_ADDRESS+0x0001FFE4
+ else
+  FLASH_BOOTROM_PADDING = 0x00007FE4 ## FLASH_VIRTUAL_ADDRESS+0x00007FE4
+ endif
+endif
+ROM_CC      = sh4gcc -DUNCOMPRESS_SYMBOL=_uncompress -fno-builtin -ffreestanding
+ROM_LD      = sh4ld -EL --defsym _start=$(FLASH_VIRTUAL_ADDRESS) -e $(FLASH_PHYSICAL_ADDRESS)
+ROM_OBJCOPY = sh4objcopy
+ifeq "$(DVD_OS)" "LINUX"
+ ifneq ($(wildcard $(ST40ROOT)$(SLASH)bin$(SLASH)sh4gcc),$(ST40ROOT)$(SLASH)bin$(SLASH)sh4gcc)
+  ROM_CC      = sh4-linux-gcc -DUNCOMPRESS_SYMBOL=uncompress -D__ASSEMBLY__ -D__KERNEL__ -fno-builtin -ffreestanding -m4 -m4-nofpu
+  ROM_LD      = sh4-linux-ld -Ttext $(FLASH_VIRTUAL_ADDRESS) -e $(FLASH_PHYSICAL_ADDRESS)
+  ROM_OBJCOPY = sh4-linux-objcopy
+ endif
+endif
+
+###########################################
+## If zlib not available, reset ZIP flag ##
+###########################################
+
+DOZIP := 0
+ifeq "$(ZIP)" "1"
+ ifeq ($(wildcard $(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)uncompr.c),$(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)uncompr.c)
+  DOZIP := 1
+ endif
+endif
+
+################
+## Target all ##
+################
+
+all: $(STSDKROOT)$(SLASH)stapp$(SLASH)flash_$(OBJECT_NAME).bin
+   -@$(RM) $(BDIR)bootrom.bin
+   -@$(RM) $(BDIR)bootrom.out
+   -@$(RM) $(BDIR)bootrom.o
+   -@$(RM) $(BDIR)bootrom_adler32.o
+   -@$(RM) $(BDIR)bootrom_crc32.o
+   -@$(RM) $(BDIR)bootrom_infback.o
+   -@$(RM) $(BDIR)bootrom_inffast.o
+   -@$(RM) $(BDIR)bootrom_inflate.o
+   -@$(RM) $(BDIR)bootrom_inftrees.o
+   -@$(RM) $(BDIR)bootrom_trees.o
+   -@$(RM) $(BDIR)bootrom_uncompr.o
+   -@$(RM) $(BDIR)bootrom_zutil.o
+   #-@$(RM) $(BDIR)main.bin
+   -@$(RM) $(BDIR)pokelist.h
+
+##################
+## Target purge ##
+##################
+
+purge :
+   -@$(RM) $(BDIR)*.out
+   -@$(RM) $(BDIR)*.bin
+   -@$(RM) $(BDIR)*.o
+
+##########
+## Zlib ##
+##########
+
+$(BDIR)bootrom_adler32.o : $(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)adler32.c
+   -@$(ROM_CC) $< -c -Wa,--gdwarf2 -D__$(DVD_PLATFORM)__ -DDVD_ADDRESSMODE=$(DVD_ADDRESSMODE) -DNO_MEMCPY -DMAX_WBITS=31 -O2 -o $@
+$(BDIR)bootrom_crc32.o : $(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)crc32.c
+   -@$(ROM_CC) $< -c -Wa,--gdwarf2 -D__$(DVD_PLATFORM)__ -DDVD_ADDRESSMODE=$(DVD_ADDRESSMODE) -DNO_MEMCPY -DMAX_WBITS=31 -O2 -o $@
+$(BDIR)bootrom_infback.o : $(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)infback.c
+   -@$(ROM_CC) $< -c -Wa,--gdwarf2 -D__$(DVD_PLATFORM)__ -DDVD_ADDRESSMODE=$(DVD_ADDRESSMODE) -DNO_MEMCPY -DMAX_WBITS=31 -O2 -o $@
+$(BDIR)bootrom_inffast.o : $(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)inffast.c
+   -@$(ROM_CC) $< -c -Wa,--gdwarf2 -D__$(DVD_PLATFORM)__ -DDVD_ADDRESSMODE=$(DVD_ADDRESSMODE) -DNO_MEMCPY -DMAX_WBITS=31 -O2 -o $@
+$(BDIR)bootrom_inflate.o : $(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)inflate.c
+   -@$(ROM_CC) $< -c -Wa,--gdwarf2 -D__$(DVD_PLATFORM)__ -DDVD_ADDRESSMODE=$(DVD_ADDRESSMODE) -DNO_MEMCPY -DMAX_WBITS=31 -O2 -o $@
+$(BDIR)bootrom_inftrees.o : $(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)inftrees.c
+   -@$(ROM_CC) $< -c -Wa,--gdwarf2 -D__$(DVD_PLATFORM)__ -DDVD_ADDRESSMODE=$(DVD_ADDRESSMODE) -DNO_MEMCPY -DMAX_WBITS=31 -O2 -o $@
+$(BDIR)bootrom_trees.o : $(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)trees.c
+   -@$(ROM_CC) $< -c -Wa,--gdwarf2 -D__$(DVD_PLATFORM)__ -DDVD_ADDRESSMODE=$(DVD_ADDRESSMODE) -DNO_MEMCPY -DMAX_WBITS=31 -O2 -o $@
+$(BDIR)bootrom_uncompr.o : $(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)uncompr.c
+   -@$(ROM_CC) $< -c -Wa,--gdwarf2 -D__$(DVD_PLATFORM)__ -DDVD_ADDRESSMODE=$(DVD_ADDRESSMODE) -DNO_MEMCPY -DMAX_WBITS=31 -O2 -o $@
+$(BDIR)bootrom_zutil.o : $(STSDKROOT)$(SLASH)bin$(SLASH)zlib$(SLASH)zutil.c
+   -@$(ROM_CC) $< -c -Wa,--gdwarf2 -D__$(DVD_PLATFORM)__ -DDVD_ADDRESSMODE=$(DVD_ADDRESSMODE) -DNO_MEMCPY -DMAX_WBITS=31 -O2 -o $@
+
+###########################
+## Poke table generation ##
+###########################
+
+.DELETE_ON_ERROR :
+
+ifeq ($(wildcard pokelist.h),pokelist.h)
+$(BDIR)pokelist.h :
+   -@$(CP) >$(NULL) pokelist.h $(BDIR)pokelist.h
+else
+$(BDIR)pokelist.h :
+   -@$(ECHO) Building POKE TABLE...
+   @romgen --show-comment --target-connect $(TARGET):$(DVD_PLATFORM)stx$(DVD_BACKEND):st40,$(TARGS) -o $(BDIR)pokelist.h
+endif
+
+pokelist.h :
+   @romgen --show-comment --target-connect $(TARGET):$(DVD_PLATFORM)stx$(DVD_BACKEND):st40,$(TARGS) -o pokelist.h
+
+generate_pokelist : pokelist.h
+
+##############
+## Boot rom ##
+##############
+
+$(BDIR)bootrom.bin : $(BDIR)bootrom.out
+   #-@$(ROM_OBJCOPY) -O binary -R .stack $(BDIR)bootrom.out $(BDIR)bootrom.bin --pad-to $(FLASH_BOOTROM_PADDING)
+   -@$(ROM_OBJCOPY) -O binary -R .stack $(BDIR)bootrom.out $(BDIR)bootrom.bin --pad-to $(FLASH_BOOTROM_PADDING)
+
+ifeq "$(DOZIP)" "1"
+$(BDIR)bootrom.out : $(BDIR)bootrom.o $(BDIR)bootrom_uncompr.o $(BDIR)bootrom_zutil.o $(BDIR)bootrom_inflate.o $(BDIR)bootrom_crc32.o $(BDIR)bootrom_inffast.o $(BDIR)bootrom_infback.o $(BDIR)bootrom_adler32.o $(BDIR)bootrom_inftrees.o $(BDIR)bootrom_trees.o
+   -@$(ROM_LD) -o $(BDIR)bootrom.out $(BDIR)bootrom.o $(BDIR)bootrom_uncompr.o $(BDIR)bootrom_zutil.o $(BDIR)bootrom_inflate.o $(BDIR)bootrom_crc32.o $(BDIR)bootrom_inffast.o $(BDIR)bootrom_infback.o $(BDIR)bootrom_adler32.o $(BDIR)bootrom_inftrees.o $(BDIR)bootrom_trees.o
+else
+$(BDIR)bootrom.out : $(BDIR)bootrom.o
+   -@$(ROM_LD) -o $(BDIR)bootrom.out $(BDIR)bootrom.o
+endif
+
+$(BDIR)bootrom.o : $(BDIR)pokelist.h bootrom.S
+   -@$(ROM_CC) bootrom.S -c -Wa,--gdwarf2 $(FLASH_BOOTROM_FLAGS) -D__$(DVD_PLATFORM)__ -DDVD_ADDRESSMODE=$(DVD_ADDRESSMODE) -I$(BDIR). -I$(ST40ROOT)$(SLASH)sh-superh-elf$(SLASH)examples$(SLASH)bare$(SLASH)sh4reg -I$(ST40ROOT)$(SLASH)sh-superh-elf$(SLASH)examples$(SLASH)os21$(SLASH)rombootram -DZIP=$(DOZIP) -D$(DVD_OS) -DST_$(subst h,H,$(DVD_BACKEND)) -o $@ -fpic
+
+#################
+## Application ##
+#################
+
+ifeq "$(DVD_OS)" "LINUX"
+$(BDIR)main.bin : $(LINUX_KERNEL)
+ifeq "$(DOZIP)" "1"
+   -@sh4outbin_vmlinux >$(NULL) $(LINUX_KERNEL) $(BDIR)main.bin -z
+else
+   -@sh4outbin_vmlinux >$(NULL) $(LINUX_KERNEL) $(BDIR)main.bin
+endif
+else
+$(BDIR)main.bin : $(STSDKROOT)$(SLASH)stapp$(SLASH)main_$(OBJECT_NAME).out
+ifeq "$(DOZIP)" "1"
+   #-@sh4outbin >$(NULL) $(STSDKROOT)$(SLASH)stapp$(SLASH)$(SLASH)main_$(OBJECT_NAME).out $(BDIR)main.bin -z
+   -@sh4outbin >$(NULL) $(STSDKROOT)$(SLASH)stapp$(SLASH)$(SLASH)main_$(OBJECT_NAME).out $(BDIR)main.bin -z
+else
+   #-@sh4outbin >$(NULL) $(STSDKROOT)$(SLASH)stapp$(SLASH)$(SLASH)main_$(OBJECT_NAME).out $(BDIR)main.bin
+   -@sh4outbin >$(NULL) $(STSDKROOT)$(SLASH)stapp$(SLASH)$(SLASH)main_$(OBJECT_NAME).out $(BDIR)main.bin
+endif
+endif
+
+#$(STSDKROOT)$(SLASH)stapp$(SLASH)flash_$(OBJECT_NAME).bin: $(BDIR)main.bin $(BDIR)bootrom.bin
+$(STSDKROOT)$(SLASH)stapp$(SLASH)flash_$(OBJECT_NAME).bin: $(BDIR)bootrom.bin
+#$(STSDKROOT)$(SLASH)stapp$(SLASH)flash_$(OBJECT_NAME).bin: $(BDIR)main.bin
+ifeq "$(DVD_HOST)" "pc"
+   #-@$(CP) >$(NULL) /B $(BDIR)bootrom.bin+$(BDIR)main.bin $(STSDKROOT)$(SLASH)stapp$(SLASH)flash_$(OBJECT_NAME).bin
+   #-@$(CP) >$(NULL) /B $(BDIR)main.bin $(STSDKROOT)$(SLASH)stapp$(SLASH)flash_$(OBJECT_NAME).bin
+else
+   #-@$(CAT) >$(NULL) $(BDIR)bootrom.bin $(BDIR)main.bin >$(STSDKROOT)$(SLASH)stapp$(SLASH)flash_$(OBJECT_NAME).bin
+   -@$(CAT) >$(NULL) $(BDIR)bootrom.bin >$(STSDKROOT)$(SLASH)stapp$(SLASH)flash_$(OBJECT_NAME).bin
+   #-@$(CAT) >$(NULL) $(BDIR)main.bin >$(STSDKROOT)$(SLASH)stapp$(SLASH)flash_$(OBJECT_NAME).bin
+endif
